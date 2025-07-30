@@ -525,6 +525,11 @@
                 text = text.slice(1, -1);
             }
 
+            // 调试：打印清理后的文本
+            if (text.includes('message')) {
+                console.log('清理后的JSON文本:', text.substring(0, 200) + '...');
+            }
+
             // 尝试直接解析
             try {
                 return JSON.parse(text);
@@ -645,13 +650,24 @@
                             return;
                         }
 
+                        // 调试：打印外层JSON对象
+                        if (index < 3) {
+                            console.log('第', index, '行外层JSON对象:', JSON.stringify(outerJson, null, 2));
+                        }
+
                         // 获取message字段
                         const message = outerJson.message || '';
                         if (!message) {
                             console.log('第', index, '行：没有message字段');
+                            console.log('第', index, '行：outerJson的键:', Object.keys(outerJson));
                             row.reflection = 'failed';
                             row.attributes = 'failed';
                             return;
+                        }
+
+                        // 调试：打印message字段
+                        if (index < 3) {
+                            console.log('第', index, '行message字段:', message.substring(0, 200) + '...');
                         }
 
                         // 解析内层JSON
