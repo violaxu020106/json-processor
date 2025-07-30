@@ -441,6 +441,23 @@
                 return null;
             }
 
+            // 尝试修复编码问题
+            try {
+                // 如果包含乱码字符，尝试重新编码
+                if (text.includes('ä') || text.includes('å') || text.includes('ç')) {
+                    // 尝试使用TextDecoder修复编码
+                    const encoder = new TextEncoder();
+                    const decoder = new TextDecoder('utf-8');
+                    const bytes = new Uint8Array(text.length);
+                    for (let i = 0; i < text.length; i++) {
+                        bytes[i] = text.charCodeAt(i);
+                    }
+                    text = decoder.decode(bytes);
+                }
+            } catch (e) {
+                // 如果编码修复失败，继续使用原始文本
+            }
+
             // 清理字符串 - 与Python版本保持一致
             text = text.replace(/[\x00-\x1f\x7f-\x9f]/g, '');
             text = text.replace(/\\n/g, '\n');
@@ -487,16 +504,25 @@
                 let data = [];
                 
                 if (fileExtension === '.csv') {
-                    // 处理CSV文件
-                    const result = Papa.parse(content, { header: true });
+                    // 处理CSV文件 - 修复编码问题
+                    const result = Papa.parse(content, { 
+                        header: true,
+                        encoding: 'UTF-8'
+                    });
                     data = result.data;
                 } else {
-                    // 处理Excel文件
+                    // 处理Excel文件 - 修复编码问题
                     try {
-                        const workbook = XLSX.read(content, { type: 'binary' });
+                        const workbook = XLSX.read(content, { 
+                            type: 'binary',
+                            codepage: 65001  // UTF-8编码
+                        });
                         const sheetName = workbook.SheetNames[0];
                         const worksheet = workbook.Sheets[sheetName];
-                        data = XLSX.utils.sheet_to_json(worksheet);
+                        data = XLSX.utils.sheet_to_json(worksheet, {
+                            raw: false,  // 保持原始字符串格式
+                            defval: ''
+                        });
                     } catch (excelError) {
                         console.error('Excel文件读取失败:', excelError);
                         return { success: false, error: 'Excel文件读取失败，请尝试上传CSV格式文件' };
