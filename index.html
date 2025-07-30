@@ -513,63 +513,42 @@
                 return null;
             }
 
-            // 清理字符串 - 与Python版本保持一致
-            text = text.replace(/[\x00-\x1f\x7f-\x9f]/g, '');
-            text = text.replace(/\\n/g, '\n');
-            text = text.replace(/\\"/g, '"');
-            text = text.replace(/\\t/g, '\t');
-            text = text.replace(/\\r/g, '\r');
-
-            // 移除开头和结尾的引号
-            if (text.startsWith('"') && text.endsWith('"')) {
-                text = text.slice(1, -1);
-            }
-
-            // 调试：打印清理后的文本
+            // 调试：打印原始文本
             if (text.includes('message')) {
-                console.log('清理后的JSON文本:', text.substring(0, 200) + '...');
+                console.log('原始JSON文本:', text.substring(0, 200) + '...');
             }
 
-            // 尝试直接解析
+            // 尝试直接解析（不进行任何清理）
             try {
                 return JSON.parse(text);
             } catch (e) {
-                // 尝试清理后解析
+                console.log('直接解析失败，尝试清理...');
+                
+                // 如果直接解析失败，尝试简单的清理
                 try {
-                    const cleaned = text
-                        .replace(/[\x00-\x1f\x7f-\x9f]/g, '')
-                        .replace(/\\n/g, '\n')
-                        .replace(/\\"/g, '"')
-                        .replace(/\\t/g, '\t')
-                        .replace(/\\r/g, '\r');
+                    // 只进行最基本的清理，不改变字符串结构
+                    let cleaned = text;
+                    
+                    // 移除控制字符，但保留换行符等
+                    cleaned = cleaned.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]/g, '');
+                    
+                    // 尝试解析清理后的文本
                     return JSON.parse(cleaned);
                 } catch (e2) {
-                    // 尝试使用正则表达式提取JSON（与Python版本一致）
+                    console.log('清理后解析也失败，尝试正则匹配...');
+                    
+                    // 最后尝试：使用正则表达式匹配JSON
                     try {
-                        // 查找最外层的JSON对象 - 修复匹配逻辑
-                        const jsonPattern = /\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/;
-                        const matches = text.match(jsonPattern);
-                        if (matches) {
-                            // 检查是否包含message字段，确保匹配的是外层JSON
-                            const matchText = matches[0];
-                            if (matchText.includes('"message"')) {
-                                return JSON.parse(matchText);
-                            } else {
-                                // 如果没有message字段，尝试匹配整个字符串
-                                return JSON.parse(text);
-                            }
+                        // 匹配最外层的JSON对象
+                        const jsonMatch = text.match(/\{[\s\S]*\}/);
+                        if (jsonMatch) {
+                            const matchText = jsonMatch[0];
+                            console.log('正则匹配到的文本:', matchText.substring(0, 200) + '...');
+                            return JSON.parse(matchText);
                         }
                     } catch (e3) {
-                        // 如果还是失败，尝试更宽松的匹配
-                        try {
-                            const jsonMatch = text.match(/\{[\s\S]*\}/);
-                            if (jsonMatch) {
-                                return JSON.parse(jsonMatch[0]);
-                            }
-                        } catch (e4) {
-                            console.log('JSON解析失败，原始文本:', text.substring(0, 100));
-                            return null;
-                        }
+                        console.log('JSON解析失败，原始文本:', text.substring(0, 100));
+                        return null;
                     }
                 }
                 return null;
