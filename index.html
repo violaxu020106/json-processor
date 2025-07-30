@@ -4,8 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JSON数据处理工具</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.mini.min.js"></script>
+    <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
     <style>
         * {
@@ -489,34 +488,13 @@
                 } else {
                     // 处理Excel文件
                     try {
-                        const workbook = XLSX.read(content, { 
-                            type: 'binary',
-                            cellDates: true,
-                            cellNF: false,
-                            cellText: false
-                        });
+                        const workbook = XLSX.read(content, { type: 'binary' });
                         const sheetName = workbook.SheetNames[0];
                         const worksheet = workbook.Sheets[sheetName];
-                        data = XLSX.utils.sheet_to_json(worksheet, { 
-                            header: 1,
-                            defval: ''
-                        });
-                        
-                        // 如果有数据，转换为对象格式
-                        if (data.length > 1) {
-                            const headers = data[0];
-                            const rows = data.slice(1);
-                            data = rows.map(row => {
-                                const obj = {};
-                                headers.forEach((header, index) => {
-                                    obj[header] = row[index] || '';
-                                });
-                                return obj;
-                            });
-                        }
+                        data = XLSX.utils.sheet_to_json(worksheet);
                     } catch (excelError) {
                         console.error('Excel文件读取失败:', excelError);
-                        return { success: false, error: 'Excel文件读取失败: ' + excelError.message };
+                        return { success: false, error: 'Excel文件读取失败，请尝试上传CSV格式文件' };
                     }
                 }
 
