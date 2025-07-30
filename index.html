@@ -422,14 +422,53 @@
                         
                         // 修复编码问题
                         if (fileExtension === '.csv') {
-                            // 对于CSV文件，使用UTF-8文本读取
-                            const textReader = new FileReader();
-                            textReader.onload = function(e2) {
-                                let textContent = e2.target.result;
+                            // 对于CSV文件，尝试多种编码
+                            const tryEncoding = (encoding) => {
+                                return new Promise((resolve) => {
+                                    const reader = new FileReader();
+                                    reader.onload = function(e) {
+                                        let content = e.target.result;
+                                        
+                                        // 移除BOM
+                                        if (content.charCodeAt(0) === 0xFEFF) {
+                                            content = content.slice(1);
+                                        }
+                                        
+                                        // 检查是否包含乱码
+                                        if (content.includes('ä') || content.includes('å') || content.includes('ç')) {
+                                            resolve(null); // 继续尝试下一个编码
+                                        } else {
+                                            resolve(content);
+                                        }
+                                    };
+                                    reader.readAsText(file, encoding);
+                                });
+                            };
+                            
+                            // 尝试多种编码
+                            Promise.all([
+                                tryEncoding('UTF-8'),
+                                tryEncoding('GBK'),
+                                tryEncoding('GB2312'),
+                                tryEncoding('Big5'),
+                                tryEncoding('ISO-8859-1')
+                            ]).then((results) => {
+                                let textContent = results.find(result => result !== null);
                                 
-                                // 移除BOM
-                                if (textContent.charCodeAt(0) === 0xFEFF) {
-                                    textContent = textContent.slice(1);
+                                if (!textContent) {
+                                    // 如果所有编码都失败，使用原始内容并尝试修复
+                                    textContent = e.target.result;
+                                    // 尝试手动修复编码
+                                    try {
+                                        const bytes = new Uint8Array(textContent.length);
+                                        for (let i = 0; i < textContent.length; i++) {
+                                            bytes[i] = textContent.charCodeAt(i);
+                                        }
+                                        const decoder = new TextDecoder('utf-8');
+                                        textContent = decoder.decode(bytes);
+                                    } catch (e) {
+                                        // 如果修复失败，使用原始内容
+                                    }
                                 }
                                 
                                 const result = processFile(textContent, file.name, fileExtension);
@@ -441,8 +480,7 @@
                                 } else {
                                     showError(result.error);
                                 }
-                            };
-                            textReader.readAsText(file, 'UTF-8');
+                            });
                         } else {
                             // 对于Excel文件，使用二进制读取
                             const result = processFile(content, file.name, fileExtension);
@@ -524,9 +562,26 @@
                     // 处理CSV文件 - 修复编码问题
                     const result = Papa.parse(content, { 
                         header: true,
-                        encoding: 'UTF-8'
+                        encoding: 'UTF-8',
+                        skipEmptyLines: true
                     });
                     data = result.data;
+                    
+                    // 检查列名是否包含BOM
+                    if (data.length > 0) {
+                        const firstRow = data[0];
+                        const keys = Object.keys(firstRow);
+                        const cleanKeys = keys.map(key => key.replace(/^\uFEFF/, '')); // 移除BOM
+                        
+                        // 重新构建数据，使用清理后的列名
+                        data = data.map(row => {
+                            const newRow = {};
+                            keys.forEach((key, index) => {
+                                newRow[cleanKeys[index]] = row[key];
+                            });
+                            return newRow;
+                        });
+                    }
                 } else {
                     // 处理Excel文件 - 修复编码问题
                     try {
