@@ -529,24 +529,34 @@
             try {
                 return JSON.parse(text);
             } catch (e) {
-                // 尝试查找JSON对象 - 更复杂的匹配
-                const jsonMatch = text.match(/\{[\s\S]*\}/);
-                if (jsonMatch) {
+                // 尝试清理后解析
+                try {
+                    const cleaned = text
+                        .replace(/[\x00-\x1f\x7f-\x9f]/g, '')
+                        .replace(/\\n/g, '\n')
+                        .replace(/\\"/g, '"')
+                        .replace(/\\t/g, '\t')
+                        .replace(/\\r/g, '\r');
+                    return JSON.parse(cleaned);
+                } catch (e2) {
+                    // 尝试使用正则表达式提取JSON（与Python版本一致）
                     try {
-                        return JSON.parse(jsonMatch[0]);
-                    } catch (e2) {
-                        // 如果还是失败，尝试更宽松的解析
+                        // 查找最外层的JSON对象
+                        const jsonPattern = /\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/;
+                        const matches = text.match(jsonPattern);
+                        if (matches) {
+                            return JSON.parse(matches[0]);
+                        }
+                    } catch (e3) {
+                        // 如果还是失败，尝试更宽松的匹配
                         try {
-                            // 移除可能的转义字符
-                            let cleaned = jsonMatch[0].replace(/\\/g, '');
-                            return JSON.parse(cleaned);
-                        } catch (e3) {
-                            // 最后尝试：使用eval（不安全，但用于调试）
-                            try {
-                                return eval('(' + jsonMatch[0] + ')');
-                            } catch (e4) {
-                                return null;
+                            const jsonMatch = text.match(/\{[\s\S]*\}/);
+                            if (jsonMatch) {
+                                return JSON.parse(jsonMatch[0]);
                             }
+                        } catch (e4) {
+                            console.log('JSON解析失败，原始文本:', text.substring(0, 100));
+                            return null;
                         }
                     }
                 }
@@ -629,6 +639,7 @@
                         const outerJson = extractJsonFromString(String(resultData));
                         if (!outerJson) {
                             console.log('第', index, '行：外层JSON解析失败');
+                            console.log('第', index, '行：尝试直接解析:', String(resultData).substring(0, 100));
                             row.reflection = 'failed';
                             row.attributes = 'failed';
                             return;
