@@ -436,6 +436,39 @@
             reader.readAsBinaryString(file);
         }
 
+        function extractJsonFromString(text) {
+            if (!text || typeof text !== 'string') {
+                return null;
+            }
+
+            // 清理字符串
+            text = text.replace(/[\x00-\x1f\x7f-\x9f]/g, '');
+            text = text.replace(/\\n/g, '\n');
+            text = text.replace(/\\"/g, '"');
+            text = text.replace(/\\t/g, '\t');
+            text = text.replace(/\\r/g, '\r');
+
+            // 移除开头和结尾的引号
+            if (text.startsWith('"') && text.endsWith('"')) {
+                text = text.slice(1, -1);
+            }
+
+            try {
+                return JSON.parse(text);
+            } catch (e) {
+                // 尝试查找JSON对象
+                const jsonMatch = text.match(/\{.*\}/s);
+                if (jsonMatch) {
+                    try {
+                        return JSON.parse(jsonMatch[0]);
+                    } catch (e2) {
+                        return null;
+                    }
+                }
+                return null;
+            }
+        }
+
         function processFile(content, filename, fileExtension) {
             try {
                 let data = [];
@@ -514,6 +547,7 @@
                         }
 
                     } catch (error) {
+                        console.log('处理第', index, '行时出错:', error);
                         row.reflection = 'failed';
                         row.attributes = 'failed';
                     }
@@ -533,40 +567,8 @@
                 };
 
             } catch (error) {
+                console.error('处理文件时出错:', error);
                 return { success: false, error: '处理文件时出错: ' + error.message };
-            }
-        }
-
-        function extractJsonFromString(text) {
-            if (!text || typeof text !== 'string') {
-                return null;
-            }
-
-            // 清理字符串
-            text = text.replace(/[\x00-\x1f\x7f-\x9f]/g, '');
-            text = text.replace(/\\n/g, '\n');
-            text = text.replace(/\\"/g, '"');
-            text = text.replace(/\\t/g, '\t');
-            text = text.replace(/\\r/g, '\r');
-
-            // 移除开头和结尾的引号
-            if (text.startsWith('"') && text.endsWith('"')) {
-                text = text.slice(1, -1);
-            }
-
-            try {
-                return JSON.parse(text);
-            } catch (e) {
-                // 尝试查找JSON对象
-                const jsonMatch = text.match(/\{.*\}/s);
-                if (jsonMatch) {
-                    try {
-                        return JSON.parse(jsonMatch[0]);
-                    } catch (e2) {
-                        return null;
-                    }
-                }
-                return null;
             }
         }
 
