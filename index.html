@@ -408,7 +408,7 @@
                 document.getElementById('progressFill').style.width = progress + '%';
             }, 200);
 
-            // 读取文件
+            // 读取文件 - 修复编码问题
             const reader = new FileReader();
             reader.onload = function(e) {
                 clearInterval(progressInterval);
@@ -418,14 +418,42 @@
                     document.getElementById('progressContainer').style.display = 'none';
                     
                     try {
-                        const result = processFile(e.target.result, file.name, fileExtension);
-                        if (result.success) {
-                            processedData = result.data;
-                            currentFilename = result.filename;
-                            showResult(result);
-                            showPreview(result.data);
+                        let content = e.target.result;
+                        
+                        // 修复编码问题
+                        if (fileExtension === '.csv') {
+                            // 对于CSV文件，使用UTF-8文本读取
+                            const textReader = new FileReader();
+                            textReader.onload = function(e2) {
+                                let textContent = e2.target.result;
+                                
+                                // 移除BOM
+                                if (textContent.charCodeAt(0) === 0xFEFF) {
+                                    textContent = textContent.slice(1);
+                                }
+                                
+                                const result = processFile(textContent, file.name, fileExtension);
+                                if (result.success) {
+                                    processedData = result.data;
+                                    currentFilename = result.filename;
+                                    showResult(result);
+                                    showPreview(result.data);
+                                } else {
+                                    showError(result.error);
+                                }
+                            };
+                            textReader.readAsText(file, 'UTF-8');
                         } else {
-                            showError(result.error);
+                            // 对于Excel文件，使用二进制读取
+                            const result = processFile(content, file.name, fileExtension);
+                            if (result.success) {
+                                processedData = result.data;
+                                currentFilename = result.filename;
+                                showResult(result);
+                                showPreview(result.data);
+                            } else {
+                                showError(result.error);
+                            }
                         }
                     } catch (error) {
                         showError('处理文件时出错: ' + error.message);
@@ -433,29 +461,18 @@
                 }, 500);
             };
             
-            reader.readAsBinaryString(file);
+            if (fileExtension === '.csv') {
+                // CSV文件使用文本读取
+                reader.readAsText(file, 'UTF-8');
+            } else {
+                // Excel文件使用二进制读取
+                reader.readAsBinaryString(file);
+            }
         }
 
         function extractJsonFromString(text) {
             if (!text || typeof text !== 'string') {
                 return null;
-            }
-
-            // 尝试修复编码问题
-            try {
-                // 如果包含乱码字符，尝试重新编码
-                if (text.includes('ä') || text.includes('å') || text.includes('ç')) {
-                    // 尝试使用TextDecoder修复编码
-                    const encoder = new TextEncoder();
-                    const decoder = new TextDecoder('utf-8');
-                    const bytes = new Uint8Array(text.length);
-                    for (let i = 0; i < text.length; i++) {
-                        bytes[i] = text.charCodeAt(i);
-                    }
-                    text = decoder.decode(bytes);
-                }
-            } catch (e) {
-                // 如果编码修复失败，继续使用原始文本
             }
 
             // 清理字符串 - 与Python版本保持一致
