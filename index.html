@@ -817,8 +817,12 @@
             // 创建CSV内容
             const csvContent = Papa.unparse(data);
             
+            // 添加BOM以确保Excel正确识别UTF-8编码
+            const BOM = '\uFEFF';
+            const csvWithBOM = BOM + csvContent;
+            
             // 创建下载链接
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const blob = new Blob([csvWithBOM], { type: 'text/csv;charset=utf-8' });
             const link = document.createElement('a');
             
             if (link.download !== undefined) {
@@ -829,6 +833,7 @@
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
+                URL.revokeObjectURL(url);
             }
         }
 
