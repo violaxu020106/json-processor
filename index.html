@@ -561,8 +561,10 @@
                     filename: outputFilename,
                     stats: {
                         total_rows: data.length,
-                        success_count: successReflection,
-                        failed_count: data.length - successReflection
+                        success_reflection: successReflection,
+                        success_attributes: successAttributes,
+                        failed_reflection: data.length - successReflection,
+                        failed_attributes: data.length - successAttributes
                     }
                 };
 
@@ -583,12 +585,12 @@
                     <div class="stat-label">总行数</div>
                 </div>
                 <div class="stat-item">
-                    <div class="stat-number">${result.stats.success_count}</div>
-                    <div class="stat-label">成功处理</div>
+                    <div class="stat-number">${result.stats.success_reflection}</div>
+                    <div class="stat-label">成功提取reflection</div>
                 </div>
                 <div class="stat-item">
-                    <div class="stat-number">${result.stats.failed_count}</div>
-                    <div class="stat-label">处理失败</div>
+                    <div class="stat-number">${result.stats.success_attributes}</div>
+                    <div class="stat-label">成功提取attributes</div>
                 </div>
             `;
             
